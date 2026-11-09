@@ -1,0 +1,52 @@
+
+name: Generate Repository Configuration
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Generate repository.json
+        env:
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          OWNER="${REPOSITORY%%/*}"
+          REPO="${REPOSITORY#*/}"
+
+          cat > repository.json <<EOF
+          {
+            "owner": "$OWNER",
+            "repo": "$REPO",
+            "branch": "$BRANCH"
+          }
+          EOF
+
+      - name: Commit configuration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add repository.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update repository configuration"
+            git push
+          else
+            echo "Configuration is already up to date."
+          fi
